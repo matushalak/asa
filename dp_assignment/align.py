@@ -117,18 +117,27 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
     ### 1: Initialize
     M = len(seq1)+1
     N = len(seq2)+1
-    score_matrix = []
+    score_matrix, pointers_matrix = [], []
+    # empty matrix full of zeros
     for i in range(M):
-        row = []
+        row, prow = [], []
         score_matrix.append(row)
+        pointers_matrix.append(prow)
         for j in range(N):
             row.append(0)
+            prow.append([])
     
     if strategy == 'global':
         #####################
         # START CODING HERE #
         #####################
-        pass    # Change the zeroes in the first row and column to the correct values.
+        # first row
+        score_matrix[0] = [-i*gap_penalty for i in range(N)]
+        pointers_matrix[0] = [(0,i-1) if i > 0 else (0,0) for i in range(N)]
+        # first column
+        for j in range(1, M):
+            score_matrix[j][0] = -j * gap_penalty
+            pointers_matrix[j][0] = (j-1, 0)
         #####################
         #  END CODING HERE  #
         #####################
@@ -136,17 +145,33 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
     
     
     ### 2: Fill in Score Matrix
- 
     #####################
     # START CODING HERE #
-    #####################
-    # def dp_function(...):
-    #     ...
-    #     return ...
-    #
-    # for i in range(1,M):
-    #     for j in range(1,N):
-    #         score_matrix[i][j] = dp_function(...)
+    #####################    
+    def dp_function(ri,cj, X = seq1, Y = seq2,
+                    MAT = score_matrix, SCORING = substitution_matrix, GAP = gap_penalty):
+        # Seq1 = X
+        # Seq2 = Y        
+        neighbors = [MAT[ri-1][cj-1] + SCORING[X[ri-1]][Y[cj-1]],
+                     MAT[ri-1][cj] - GAP,
+                     MAT[ri][cj-1] - GAP]
+        
+        best_nb = max(neighbors)
+
+        neighbor_map = {
+            0: (ri - 1, cj - 1),
+            1: (ri-1, cj),
+            2: (ri, cj-1)}
+
+        # stores all pointers for a given field
+        pointers = {i:neighbor_map[i] for i, n in enumerate(neighbors) if n == best_nb}
+        # high road (prioritize diagonals), otherwise take whatever
+        pointers = pointers[0] if 0 in pointers else  pointers[list(pointers)[-1]]
+        return best_nb, pointers
+    
+    for i in range(1,M):
+        for j in range(1,N):
+            score_matrix[i][j], pointers_matrix[i][j] = dp_function(i,j)
             
     #####################
     #  END CODING HERE  #
@@ -154,7 +179,7 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
     
     
     ### 3: Traceback
-    
+    # High Road: favor (mis)matches over gaps; otherwise randomly choose insertion / deletion
     #####################
     # START CODING HERE #
     #####################   
