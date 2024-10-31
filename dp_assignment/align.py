@@ -152,27 +152,27 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
                     MAT = score_matrix, SCORING = substitution_matrix, GAP = gap_penalty):
         # Seq1 = X
         # Seq2 = Y        
-        neighbors = [MAT[ri-1][cj-1] + SCORING[X[ri-1]][Y[cj-1]],
-                     MAT[ri-1][cj] - GAP,
-                     MAT[ri][cj-1] - GAP]
+        neighbors = [MAT[ri][cj-1] - GAP, # left
+                     MAT[ri-1][cj-1] + SCORING[X[ri-1]][Y[cj-1]], # diagonal
+                     MAT[ri-1][cj] - GAP] # up
         
         best_nb = max(neighbors)
 
         neighbor_map = {
-            0: (ri - 1, cj - 1),
-            1: (ri-1, cj),
-            2: (ri, cj-1)}
+            0: (ri, cj-1), # low road
+            1: (ri - 1, cj - 1), # diagonal
+            2: (ri-1, cj)} # high road
 
         # stores all pointers for a given field
         pointers = {i:neighbor_map[i] for i, n in enumerate(neighbors) if n == best_nb}
-        # high road (prioritize diagonals), otherwise take whatever
-        pointers = pointers[0] if 0 in pointers else  pointers[list(pointers)[-1]]
+        # high road take highest index
+        pointers = pointers[max(pointers)]
         return best_nb, pointers
     
     for i in range(1,M):
         for j in range(1,N):
             score_matrix[i][j], pointers_matrix[i][j] = dp_function(i,j)
-            
+    # breakpoint()        
     #####################
     #  END CODING HERE  #
     #####################   
@@ -183,11 +183,40 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
     #####################
     # START CODING HERE #
     #####################   
+    # initialize with empty string
+    aligned_seq1 = ''
+    aligned_seq2 = ''
+    align_score = score_matrix[-1][-1] # alignment score from score matrix
 
-    aligned_seq1 = 'foot'  # These are dummy values! Change the code so that
-    aligned_seq2 = 'bart'  # aligned_seq1 and _seq2 contain the input sequences
-    align_score = 0        # with gaps inserted at the appropriate positions.
+    # traverse pointers matrix
+    last_pointer = (M-1, N-1) # bottom right
+    current_pointer = pointers_matrix[-1][-1]
+    while True:
+        diff = (current_pointer[0] - last_pointer[0],
+                current_pointer[1] - last_pointer[1])
+        
+        if last_pointer == current_pointer:
+            break
 
+        # both -1: diagonal
+        if set(diff) == {-1}:
+            aligned_seq1 += seq1[current_pointer[0]]
+            aligned_seq2 += seq2[current_pointer[1]]
+        # - row == high road, gap in Y
+        elif diff[0] == -1:
+            aligned_seq1 += seq1[current_pointer[0]]
+            aligned_seq2 += '-'
+        # - col == low road, gap in X
+        elif diff[1] == -1:
+            aligned_seq1 += '-'
+            aligned_seq2 += seq2[current_pointer[1]]
+        
+        last_pointer = current_pointer
+        current_pointer = pointers_matrix[current_pointer[0]][current_pointer[1]]
+
+    aligned_seq1 = aligned_seq1[::-1]
+    aligned_seq2 = aligned_seq2[::-1]
+    # breakpoint()
     #####################
     #  END CODING HERE  #
     #####################   
