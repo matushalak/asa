@@ -142,12 +142,14 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         #####################
         #  END CODING HERE  #
         #####################
-
-    # initialize 1st row & col with 0s == don't penalize gaps at the beginning of either sequence
-    # 0s first row - X penalize gaps in seq1 / x / query; 
-    # 0s first col - X penalize gaps in seq2 / y / reference
-    # if you only want to allow gaps at beginning of one sequence but NOT another - initialize seq. w gaps with 0s but sequence without gaps same as global alignment
-    elif strategy == 'semiglobal':
+    
+    # SEMIGLOBAL
+        # initialize 1st row & col with 0s == don't penalize gaps at the beginning of either sequence
+        # 0s first row - X penalize gaps in seq1 / x / query; 
+        # 0s first col - X penalize gaps in seq2 / y / reference
+        # if you only want to allow gaps at beginning of one sequence but NOT another - initialize seq. w gaps with 0s but sequence without gaps same as global alignment
+    # LOCAL - also initialize with zeros
+    elif strategy in ('semiglobal', 'local'):
         # first row
         score_matrix[0] = [0 for _ in range(N)]
         pointers_matrix[0] = [(0,i-1) if i > 0 else (0,0) for i in range(N)]
@@ -160,7 +162,8 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
     # same between global & semiglobal & local
     #####################
     # START CODING HERE #
-    #####################    
+    #####################
+    # TODO Local Alignment    
     def dp_function(ri,cj, X = seq1, Y = seq2,
                     MAT = score_matrix, SCORING = substitution_matrix, GAP = gap_penalty):
         # Seq1 = X
@@ -180,6 +183,11 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         pointers = {i:neighbor_map[i] for i, n in enumerate(neighbors) if n == best_nb}
         # high road take highest index
         pointers = pointers[max(pointers)]
+        # if local check if sub / gap results in negative score
+        if strategy ==  'local':
+            # make sure that stop only at HARD zeros
+            pointers = (ri,cj) if max(best_nb, 0) == 0 and 0 not in neighbors else pointers
+            return max(best_nb, 0), pointers
         return best_nb, pointers
     
     for i in range(1,M):
@@ -216,6 +224,7 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         # allow free gaps at the end of the shorter sequence
         start_index = (M-1, max_row) if len(seq1) < len(seq2) else (max_col, N-1)
         align_score = score_matrix[start_index[0]][start_index[1]]
+        
         D = (start_index[0] - (M-1),
              start_index[1] - (N-1))
         end_gaps = 0 if D[0] == 0 else 1 # which sequence has gaps at the end
@@ -228,10 +237,21 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         aseqs[end_gaps] += ''.join(['-' for _ in range(n_gaps)])
 
         # rest of traceback same as in global alignment
-        aligned_seq1, aligned_seq2 = aseqs # strings are immutable so need to do this for it to be used later
+        # strings are immutable so need to do this for it to be used later
+        aligned_seq1, aligned_seq2 = aseqs 
         last_pointer = start_index
         current_pointer = pointers_matrix[start_index[0]][start_index[1]]
-    
+    # traceback from max
+    elif strategy ==  'local':
+        start_row = max(rowmaxes := [max(r) for r in score_matrix])
+        start_row = rowmaxes.index(start_row)
+
+        start_col = max(score_matrix[start_row])
+        start_col = score_matrix[start_row].index(start_col)
+        
+        align_score = score_matrix[start_row][start_col]
+        last_pointer = (start_row, start_col)
+        current_pointer = pointers_matrix[start_row][start_col]
     # traverse pointers matrix
     while True:
         diff = (current_pointer[0] - last_pointer[0],
@@ -256,15 +276,17 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         last_pointer = current_pointer
         current_pointer = pointers_matrix[current_pointer[0]][current_pointer[1]]
 
+        # if strategy ==  'local' and score_matrix[current_pointer[0]][current_pointer[1]] == 0:
+        #     break
+
     aligned_seq1 = aligned_seq1[::-1]
     aligned_seq2 = aligned_seq2[::-1]
     # breakpoint()
     #####################
     #  END CODING HERE  #
     #####################   
-
-
     alignment = (aligned_seq1, aligned_seq2, align_score)
+    # breakpoint()
     return (alignment, score_matrix)
 
 
