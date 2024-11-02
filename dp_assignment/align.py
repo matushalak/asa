@@ -127,6 +127,7 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
             row.append(0)
             prow.append([])
     
+    # initialize 1st row & col with gap penalties
     if strategy == 'global':
         #####################
         # START CODING HERE #
@@ -142,9 +143,21 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         #  END CODING HERE  #
         #####################
 
-    
-    
+    # initialize 1st row & col with 0s == don't penalize gaps at the beginning of either sequence
+    # 0s first row - X penalize gaps in seq1 / x / query; 
+    # 0s first col - X penalize gaps in seq2 / y / reference
+    # if you only want to allow gaps at beginning of one sequence but NOT another - initialize seq. w gaps with 0s but sequence without gaps same as global alignment
+    elif strategy == 'semiglobal':
+        # first row
+        score_matrix[0] = [0 for _ in range(N)]
+        pointers_matrix[0] = [(0,i-1) if i > 0 else (0,0) for i in range(N)]
+        # first column
+        for j in range(1, M):
+            score_matrix[j][0] = 0
+            pointers_matrix[j][0] = (j-1, 0)
+
     ### 2: Fill in Score Matrix
+    # same between global & semiglobal & local
     #####################
     # START CODING HERE #
     #####################    
@@ -186,11 +199,40 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
     # initialize with empty string
     aligned_seq1 = ''
     aligned_seq2 = ''
-    align_score = score_matrix[-1][-1] # alignment score from score matrix
+    
+    if strategy == 'global':
+        align_score = score_matrix[-1][-1] # alignment score from score matrix
+        last_pointer = (M-1, N-1) # bottom right
+        current_pointer = pointers_matrix[-1][-1]
+    
+    # different traceback
+    elif strategy == 'semiglobal':
+        # where you start from determines in which sequence you allow free gaps at the end
+        # makes sense to allow free gaps at the end of the shorter sequence
+        max_row = score_matrix[-1].index(max(score_matrix[-1])) # column with maximum value in last row
+        last_col = [r[-1] for r in score_matrix]
+        max_col = last_col.index(max(last_col)) # row with maximum value in last column
 
+        # allow free gaps at the end of the shorter sequence
+        start_index = (M-1, max_row) if len(seq1) < len(seq2) else (max_col, N-1)
+        align_score = score_matrix[start_index[0]][start_index[1]]
+        D = (start_index[0] - (M-1),
+             start_index[1] - (N-1))
+        end_gaps = 0 if D[0] == 0 else 1 # which sequence has gaps at the end
+        no_gaps = abs(end_gaps - 1)
+        n_gaps = abs(D[no_gaps])
+        # breakpoint()
+        seqs = (seq1, seq2)
+        aseqs = [aligned_seq1, aligned_seq2]
+        aseqs[no_gaps] += seqs[no_gaps][-n_gaps:]
+        aseqs[end_gaps] += ''.join(['-' for _ in range(n_gaps)])
+
+        # rest of traceback same as in global alignment
+        aligned_seq1, aligned_seq2 = aseqs # strings are immutable so need to do this for it to be used later
+        last_pointer = start_index
+        current_pointer = pointers_matrix[start_index[0]][start_index[1]]
+    
     # traverse pointers matrix
-    last_pointer = (M-1, N-1) # bottom right
-    current_pointer = pointers_matrix[-1][-1]
     while True:
         diff = (current_pointer[0] - last_pointer[0],
                 current_pointer[1] - last_pointer[1])
