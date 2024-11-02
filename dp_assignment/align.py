@@ -139,9 +139,6 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         for j in range(1, M):
             score_matrix[j][0] = -j * gap_penalty
             pointers_matrix[j][0] = (j-1, 0)
-        #####################
-        #  END CODING HERE  #
-        #####################
     
     # SEMIGLOBAL
         # initialize 1st row & col with 0s == don't penalize gaps at the beginning of either sequence
@@ -150,20 +147,24 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         # if you only want to allow gaps at beginning of one sequence but NOT another - initialize seq. w gaps with 0s but sequence without gaps same as global alignment
     # LOCAL - also initialize with zeros
     elif strategy in ('semiglobal', 'local'):
+        minus = 1 if strategy == 'semiglobal' else 0
         # first row
         score_matrix[0] = [0 for _ in range(N)]
-        pointers_matrix[0] = [(0,i-1) if i > 0 else (0,0) for i in range(N)]
+        pointers_matrix[0] = [(0,i-minus) if i > 0 else (0,0) for i in range(N)]
         # first column
         for j in range(1, M):
             score_matrix[j][0] = 0
-            pointers_matrix[j][0] = (j-1, 0)
+            pointers_matrix[j][0] = (j-minus, 0)
+
+        #####################
+        #  END CODING HERE  #
+        #####################
 
     ### 2: Fill in Score Matrix
     # same between global & semiglobal & local
     #####################
     # START CODING HERE #
-    #####################
-    # TODO Local Alignment    
+    ##################### 
     def dp_function(ri,cj, X = seq1, Y = seq2,
                     MAT = score_matrix, SCORING = substitution_matrix, GAP = gap_penalty):
         # Seq1 = X
@@ -243,15 +244,24 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         current_pointer = pointers_matrix[start_index[0]][start_index[1]]
     # traceback from max
     elif strategy ==  'local':
-        start_row = max(rowmaxes := [max(r) for r in score_matrix])
-        start_row = rowmaxes.index(start_row)
+        # get all the max scores (stupid in native python, easy and faster in numpy)
+        maxes = []
+        max_val = score_matrix[0][0]
+        for ir, rr in enumerate(score_matrix):
+            for ic, cc in enumerate(rr):
+                if score_matrix[ir][ic] > max_val:
+                    max_val = score_matrix[ir][ic]
+                    maxes = [(ir,ic)]
+                elif score_matrix[ir][ic] == max_val:
+                    maxes.append((ir,ic))
 
-        start_col = max(score_matrix[start_row])
-        start_col = score_matrix[start_row].index(start_col)
-        
+        # high road choice of optimal local alignment        
+        start_row, start_col = sorted(maxes, key = lambda x: (x[1], -x[0]), reverse = True)[0]
+
         align_score = score_matrix[start_row][start_col]
         last_pointer = (start_row, start_col)
         current_pointer = pointers_matrix[start_row][start_col]
+        # breakpoint()
     # traverse pointers matrix
     while True:
         diff = (current_pointer[0] - last_pointer[0],
@@ -259,6 +269,12 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         
         if last_pointer == current_pointer:
             break
+
+        # skipping soft zeros
+        # if (strategy ==  'local' and 
+        #     score_matrix[current_pointer[0]][current_pointer[1]] == 0 and 
+        #     score_matrix[last_pointer[0]][last_pointer[1]] == 0):
+        #     break
 
         # both -1: diagonal
         if set(diff) == {-1}:
@@ -275,9 +291,6 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         
         last_pointer = current_pointer
         current_pointer = pointers_matrix[current_pointer[0]][current_pointer[1]]
-
-        # if strategy ==  'local' and score_matrix[current_pointer[0]][current_pointer[1]] == 0:
-        #     break
 
     aligned_seq1 = aligned_seq1[::-1]
     aligned_seq2 = aligned_seq2[::-1]
