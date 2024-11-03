@@ -8,7 +8,7 @@ INSTRUCTIONS:
     Complete the code (compatible with Python 3!) upload to CodeGrade via corresponding Canvas assignment.
 
 AUTHOR:
-    <Name and student ID here!>
+    Matus Halak - 2724858
 """
 
 
@@ -193,8 +193,7 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
     
     for i in range(1,M):
         for j in range(1,N):
-            score_matrix[i][j], pointers_matrix[i][j] = dp_function(i,j)
-    # breakpoint()        
+            score_matrix[i][j], pointers_matrix[i][j] = dp_function(i,j)    
     #####################
     #  END CODING HERE  #
     #####################   
@@ -217,13 +216,24 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
     # different traceback
     elif strategy == 'semiglobal':
         # where you start from determines in which sequence you allow free gaps at the end
-        # makes sense to allow free gaps at the end of the shorter sequence
-        max_row = score_matrix[-1].index(max(score_matrix[-1])) # column with maximum value in last row
-        last_col = [r[-1] for r in score_matrix]
-        max_col = last_col.index(max(last_col)) # row with maximum value in last column
-
-        # allow free gaps at the end of the shorter sequence
-        start_index = (M-1, max_row) if len(seq1) < len(seq2) else (max_col, N-1)
+        # makes sense to allow free gaps at the end of the shorter sequence (but apparently not for this assignment)
+        maxes = []
+        max_val = score_matrix[-1][-1]
+        for ic, val in enumerate(score_matrix[-1]):
+            if val > max_val:
+                max_val = val
+                maxes = [(M-1, ic)]
+            elif val == max_val:
+                maxes.append((M-1, ic))
+        for ir, val in enumerate([r[-1] for r in score_matrix]):
+            if val > max_val:
+                max_val = val
+                maxes = [(ir, N-1)]
+            elif val == max_val:
+                maxes.append((ir, N-1))
+        
+        # high road - get absolute max from last row & last col, prioritizing lowest row index in last col
+        start_index = sorted(maxes, key = lambda x: (x[1], -x[0]), reverse = True)[0]
         align_score = score_matrix[start_index[0]][start_index[1]]
         
         D = (start_index[0] - (M-1),
@@ -231,10 +241,10 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         end_gaps = 0 if D[0] == 0 else 1 # which sequence has gaps at the end
         no_gaps = abs(end_gaps - 1)
         n_gaps = abs(D[no_gaps])
-        # breakpoint()
+        
         seqs = (seq1, seq2)
         aseqs = [aligned_seq1, aligned_seq2]
-        aseqs[no_gaps] += seqs[no_gaps][-n_gaps:]
+        aseqs[no_gaps] += seqs[no_gaps][-n_gaps:][::-1] if n_gaps > 0 else ''
         aseqs[end_gaps] += ''.join(['-' for _ in range(n_gaps)])
 
         # rest of traceback same as in global alignment
@@ -242,17 +252,18 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         aligned_seq1, aligned_seq2 = aseqs 
         last_pointer = start_index
         current_pointer = pointers_matrix[start_index[0]][start_index[1]]
+    
     # traceback from max
     elif strategy ==  'local':
         # get all the max scores (stupid in native python, easy and faster in numpy)
         maxes = []
         max_val = score_matrix[0][0]
         for ir, rr in enumerate(score_matrix):
-            for ic, cc in enumerate(rr):
-                if score_matrix[ir][ic] > max_val:
-                    max_val = score_matrix[ir][ic]
+            for ic, val in enumerate(rr):
+                if val > max_val:
+                    max_val = val
                     maxes = [(ir,ic)]
-                elif score_matrix[ir][ic] == max_val:
+                elif val == max_val:
                     maxes.append((ir,ic))
 
         # high road choice of optimal local alignment        
@@ -261,7 +272,7 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         align_score = score_matrix[start_row][start_col]
         last_pointer = (start_row, start_col)
         current_pointer = pointers_matrix[start_row][start_col]
-        # breakpoint()
+
     # traverse pointers matrix
     while True:
         diff = (current_pointer[0] - last_pointer[0],
@@ -269,12 +280,6 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
         
         if last_pointer == current_pointer:
             break
-
-        # skipping soft zeros
-        # if (strategy ==  'local' and 
-        #     score_matrix[current_pointer[0]][current_pointer[1]] == 0 and 
-        #     score_matrix[last_pointer[0]][last_pointer[1]] == 0):
-        #     break
 
         # both -1: diagonal
         if set(diff) == {-1}:
@@ -294,12 +299,10 @@ def align(seq1, seq2, strategy, substitution_matrix, gap_penalty):
 
     aligned_seq1 = aligned_seq1[::-1]
     aligned_seq2 = aligned_seq2[::-1]
-    # breakpoint()
     #####################
     #  END CODING HERE  #
     #####################   
     alignment = (aligned_seq1, aligned_seq2, align_score)
-    # breakpoint()
     return (alignment, score_matrix)
 
 
