@@ -13,8 +13,6 @@ AUTHOR:
 
 import argparse
 
-
-
 # Implement the following functions.
 # Replace "raise NotImplementedError" with your own code.
 
@@ -48,6 +46,16 @@ def bwt(rotations):
     """
     raise NotImplementedError
 
+# TODO
+def suffix_array_linear(string):
+    # look up paper for linear suffix array algorithm & implement it
+    pass
+
+# TODO
+def btw_linear(string):
+    # use O(n) algorithm to construct suffix array
+    pass
+
 def rle(seq):
     """Return the Run-Length Encoding (RLE) of a string, as a string containing
     single characters alternating with digits.
@@ -80,6 +88,11 @@ def compute_rank_vector(bwt_seq):
     """
     raise NotImplementedError
 
+# TODO
+def better_rank_vector(bwt_seq):
+    # compute the hash map later used for BWAlignment as well
+    pass
+
 def compute_f_map(bwt_seq):
     """Return, for the given BW-transformed string, a dictionary mapping each
     distinct character to its first occurrence in the first column of the
@@ -104,7 +117,10 @@ def bwt_invert(bwt_seq, rank, f_map):
     """
     raise NotImplementedError
         
-
+# TODO
+def bwa (subseq, seq):
+    # align subseq to seq
+    pass
 
 
 
