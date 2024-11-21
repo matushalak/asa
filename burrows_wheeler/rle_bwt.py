@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+# @matushalak
 """
 DESCRIPTION:
     Template code for the BWT assignment in the Algorithms in Sequence Analysis course at the VU.
@@ -8,13 +8,12 @@ INSTRUCTIONS:
     Complete the code (compatible with Python 3!) upload to CodeGrade via corresponding Canvas assignment.
 
 AUTHOR:
-    <Name and student ID here!>
+    <Matus Halak 2724858>
 """
 
 import argparse
 
 # Implement the following functions.
-# Replace "raise NotImplementedError" with your own code.
 
 def read_fasta(filename):
     """Read a single sequence from the given FASTA file.
@@ -23,18 +22,32 @@ def read_fasta(filename):
     If the file is not in correct FASTA format, an error message should
     be shown (e.g. by raising ValueError).
     """
-    raise NotImplementedError
+    seq = []
+    with open(filename,'r') as fa:
+        for il, line in enumerate(fa):
+            if il == 0 and line[0] != '>':
+                raise ValueError('Error: Not Fasta format!')
+
+            if line.startswith('>'):
+                if not seq:
+                    continue # skip first line with metadata
+                else:
+                    break # Stop if start of 2nd seq encountered
+            else:
+                seq.append(line.strip()) # add current line to sequence
+    return ''.join(seq) # return as a string
 
 def string_rotations(seq):
     """Return a list containing all rotations of the given sequence.
-    The given sequence ends with a unique $.
+    The given sequence ends with a unique $ (appended in main).
 
     Example:
     >>> string_rotations('banana$')
     ['banana$', 'anana$b', 'nana$ba', 'ana$ban',
      'na$bana', 'a$banan', '$banana']
     """
-    raise NotImplementedError
+    # return letters from index until end + letters until index
+    return [seq[i:]+seq[:i] for i in range(len(seq))]
 
 def bwt(rotations):
     """Return the Burrows-Wheeler Transform (BWT) of a sequence, given a list
@@ -44,7 +57,8 @@ def bwt(rotations):
     >>> bwt(string_rotations('banana$'))
     'annb$aa'
     """
-    raise NotImplementedError
+    # last letters of sorted btw list
+    return ''.join([r[-1] for r in sorted(rotations)])
 
 # TODO
 def suffix_array_linear(string):
@@ -64,7 +78,16 @@ def rle(seq):
     >>> rle('annb$aa')
     'a1n2b1$1a2'
     """
-    raise NotImplementedError
+    code = [seq[0]]
+    count = 1
+    for i, l in enumerate(seq):
+        if seq[i-1] == l:
+            count += 1
+        else:
+            count =1
+
+
+    return ''.join(code)
     
 def rle_invert(rle_seq):
     """Given a Run-Length Encoded string, return the original string in its
