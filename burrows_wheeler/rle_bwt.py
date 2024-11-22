@@ -15,7 +15,7 @@ import argparse
 
 # Implement the following functions.
 
-def read_fasta(filename):
+def read_fasta(filename:str):
     """Read a single sequence from the given FASTA file.
     The header of the sequence can be ignored, and if the file contains
     multiple sequences only the first one should be returned.
@@ -37,7 +37,7 @@ def read_fasta(filename):
                 seq.append(line.strip()) # add current line to sequence
     return ''.join(seq) # return as a string
 
-def string_rotations(seq):
+def string_rotations(seq:str):
     """Return a list containing all rotations of the given sequence.
     The given sequence ends with a unique $ (appended in main).
 
@@ -49,7 +49,7 @@ def string_rotations(seq):
     # return letters from index until end + letters until index
     return [seq[i:]+seq[:i] for i in range(len(seq))]
 
-def bwt(rotations):
+def bwt(rotations:list):
     """Return the Burrows-Wheeler Transform (BWT) of a sequence, given a list
     of its rotations.
 
@@ -61,16 +61,16 @@ def bwt(rotations):
     return ''.join([r[-1] for r in sorted(rotations)])
 
 # TODO
-def suffix_array_linear(string):
+def suffix_array_linear(string:str):
     # look up paper for linear suffix array algorithm & implement it
     pass
 
 # TODO
-def btw_linear(string):
+def bwt_linear(string:str):
     # use O(n) algorithm to construct suffix array
     pass
 
-def rle(seq):
+def rle(seq:str):
     """Return the Run-Length Encoding (RLE) of a string, as a string containing
     single characters alternating with digits.
 
@@ -82,14 +82,19 @@ def rle(seq):
     count = 1
     for i, l in enumerate(seq):
         if seq[i-1] == l:
-            count += 1
+            if i > 0:
+                count += 1
+        
         else:
-            count =1
+            code += [str(count), l]
+            count = 1
 
+        if i == len(seq) - 1:
+            code.append(str(count))
 
     return ''.join(code)
     
-def rle_invert(rle_seq):
+def rle_invert(rle_seq:str):
     """Given a Run-Length Encoded string, return the original string in its
     uncompressed form.
 
@@ -97,9 +102,10 @@ def rle_invert(rle_seq):
     >>> rle_invert('a1n2b1$1a2')
     'annb$aa'
     """
-    raise NotImplementedError
+    # return previous character n times, if character n is numeric
+    return ''.join([int(n)*rle_seq[i-1]for i, n in enumerate(rle_seq) if n.isnumeric()])
 
-def compute_rank_vector(bwt_seq):
+def compute_rank_vector(bwt_seq:str):
     """Return the rank vector for the given BW-transformed string. The rank
     vector contains at each position i, the number of occurrences of bwt_seq[i]
     in positions before i; that is, the first A has rank 0, the third G has rank
@@ -109,14 +115,24 @@ def compute_rank_vector(bwt_seq):
     >>> compute_rank_vector('annb$aa')
     [0, 0, 1, 0, 0, 1, 2]
     """
-    raise NotImplementedError
+    Rank = dict.fromkeys(set(bwt_seq), -1)
+    rankv = []
+    for ch in bwt_seq:
+        Rank[ch] += 1
+        rankv.append(Rank[ch])
 
-# TODO
-def better_rank_vector(bwt_seq):
+    return rankv
+
+def better_rank(bwt_seq:str):
     # compute the hash map later used for BWAlignment as well
-    pass
+    Rank = dict.fromkeys(set(bwt_seq)) # if list here, all initialized w same list
+    for i, ch in enumerate(bwt_seq):
+        if not Rank[ch]:
+            Rank[ch] = []
+        Rank[ch].append(i)
+    return Rank
 
-def compute_f_map(bwt_seq):
+def compute_f_map(bwt_seq:str):
     """Return, for the given BW-transformed string, a dictionary mapping each
     distinct character to its first occurrence in the first column of the
     Burrows-Wheeler matrix.
@@ -127,9 +143,17 @@ def compute_f_map(bwt_seq):
 
     (The F-column for 'banana$' would be [$, a, a, a, b, n, n])
     """
-    raise NotImplementedError
+    F = sorted(bwt_seq)
+    Fmap = dict.fromkeys(set(bwt_seq)) # initializes with None as values
+    for i, ch in enumerate(F): 
+        if not Fmap[ch]:
+            Fmap[ch] = i
 
-def bwt_invert(bwt_seq, rank, f_map):
+    return Fmap
+
+
+
+def bwt_invert(bwt_seq:str, rank:list|dict, f_map:dict):
     """Invert the Burrows-Wheeler Transform of a sequence, given the transformed
     sequence itself, the rank vector and the mapping of the F-column.
 
@@ -138,16 +162,46 @@ def bwt_invert(bwt_seq, rank, f_map):
     >>> bwt_invert(seq, compute_rank_vector(seq), compute_f_map(seq))
     'banana$'
     """
-    raise NotImplementedError
+    decoded = ''
+    match rank:
+        case dict():
+            pass
+            # fmap[ch] - first occurence of that letter in sorted 1st col
+            # rank[ch] - indices of occurences of that letter
+            # F, L = first_col[0], last_col[0]
+            # for _ in range(len(last_col)):
+            #     # print(F, L)
+            #     if F == first_col[0]:
+            #         decoded += L
+            #         lc_index = lc_ranked[L].index(0)
+            #     else:
+            #         decoded += L
+            #         lc_index = lc_ranked[L].index(F)
+
+            #     # look for ELEMENT at same index in L, and find its FIRST INDEX in F
+            #     F = fc_ranked[L][lc_index] # F is index now
+            #     L = last_col[F]
+            
+            # print(OUT := decoded.replace('$', ' ').strip()[::-1])
+        case list():
+            # fmap[ch] - first occurence of that letter in sorted 1st col
+            # rank[i] - which letter in the sequence is
+            F, L = '$', bwt_seq[0]
+            for _ in enumerate(bwt_seq):
+                decoded += L
+                if F == '$':
+                    lc_index = rank[0]
+                else:
+                    lc_index = rank[F]
+
+                F = f_map[L] + lc_index # F is index now
+                L = bwt_seq[F]
+    return decoded[-2::-1]+'$' # '$' Needs to be at the end...
         
 # TODO
 def bwa (subseq, seq):
     # align subseq to seq
     pass
-
-
-
-
 
 # Code for testing:
 
