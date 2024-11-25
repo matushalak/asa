@@ -194,7 +194,8 @@ def bwa (subseq, seq):
     pass
 
 # Code for testing:
-
+# TODO: shell script that tests on all fasta files:
+# python3 data_BWT/file.fa
 def main():
     parser = argparse.ArgumentParser()
     file_or_stdin = parser.add_mutually_exclusive_group(required=True)
