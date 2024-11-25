@@ -81,13 +81,13 @@ def rle(seq:str):
     code = [seq[0]]
     count = 1
     for i, l in enumerate(seq):
-        if seq[i-1] == l:
-            if i > 0:
+        if i > 0:
+            if seq[i-1] == l:
                 count += 1
         
-        else:
-            code += [str(count), l]
-            count = 1
+            else:
+                code += [str(count), l]
+                count = 1
 
         if i == len(seq) - 1:
             code.append(str(count))
@@ -103,7 +103,20 @@ def rle_invert(rle_seq:str):
     'annb$aa'
     """
     # return previous character n times, if character n is numeric
-    return ''.join([int(n)*rle_seq[i-1]for i, n in enumerate(rle_seq) if n.isnumeric()])
+    num = ''
+    decoded = ''
+    for i, n in enumerate(rle_seq): 
+        if n.isnumeric():
+            num += n
+            if i == len(rle_seq) - 1:
+                decoded += int(num)*letter
+        else:
+            if i>0 and rle_seq[i-1].isnumeric():
+                decoded += int(num)*letter
+            letter = n
+            num = ''
+
+    return decoded
 
 def compute_rank_vector(bwt_seq:str):
     """Return the rank vector for the given BW-transformed string. The rank
@@ -153,7 +166,7 @@ def compute_f_map(bwt_seq:str):
 
 
 
-def bwt_invert(bwt_seq:str, rank:list|dict, f_map:dict):
+def bwt_invert(bwt_seq:str, rank:list, f_map:dict):
     """Invert the Burrows-Wheeler Transform of a sequence, given the transformed
     sequence itself, the rank vector and the mapping of the F-column.
 
@@ -163,40 +176,17 @@ def bwt_invert(bwt_seq:str, rank:list|dict, f_map:dict):
     'banana$'
     """
     decoded = ''
-    match rank:
-        case dict():
-            pass
-            # fmap[ch] - first occurence of that letter in sorted 1st col
-            # rank[ch] - indices of occurences of that letter
-            # F, L = first_col[0], last_col[0]
-            # for _ in range(len(last_col)):
-            #     # print(F, L)
-            #     if F == first_col[0]:
-            #         decoded += L
-            #         lc_index = lc_ranked[L].index(0)
-            #     else:
-            #         decoded += L
-            #         lc_index = lc_ranked[L].index(F)
+    F, L = '$', bwt_seq[0]
+    for _ in enumerate(bwt_seq):
+        decoded += L
+        if F == '$':
+            lc_index = rank[0]
+        else:
+            lc_index = rank[F]
 
-            #     # look for ELEMENT at same index in L, and find its FIRST INDEX in F
-            #     F = fc_ranked[L][lc_index] # F is index now
-            #     L = last_col[F]
-            
-            # print(OUT := decoded.replace('$', ' ').strip()[::-1])
-        case list():
-            # fmap[ch] - first occurence of that letter in sorted 1st col
-            # rank[i] - which letter in the sequence is
-            F, L = '$', bwt_seq[0]
-            for _ in enumerate(bwt_seq):
-                decoded += L
-                if F == '$':
-                    lc_index = rank[0]
-                else:
-                    lc_index = rank[F]
-
-                F = f_map[L] + lc_index # F is index now
-                L = bwt_seq[F]
-    return decoded[-2::-1]+'$' # '$' Needs to be at the end...
+        F = f_map[L] + lc_index # F is index now
+        L = bwt_seq[F]
+    return decoded[-2::-1]+'$' # '$' Needs to be at the end...makes more sense to strip ends
         
 # TODO
 def bwa (subseq, seq):
