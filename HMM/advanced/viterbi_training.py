@@ -12,7 +12,7 @@ INSTRUCTIONS:
     training!
 
 AUTHOR:
-    <your name and student number here>
+    <Matus Halak 2724858>
 """
 
 import os.path as op

@@ -12,7 +12,7 @@ INSTRUCTIONS:
     training! Continuous Feedback will not be available for this script.
 
 AUTHOR:
-    <your name and student number here>
+    <Matus Halak 2724858>
 """
 
 from argparse import ArgumentParser, RawTextHelpFormatter
