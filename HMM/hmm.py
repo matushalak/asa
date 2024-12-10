@@ -166,7 +166,7 @@ def baumwelch(set_X,A,E):
 
     allStates = A.keys()
     emittingStates = E.keys()
-    symbols = [s for s in E['L'].keys()]
+    symbols = [s for s in E[list(E)[0]]]
     
     # Initialize a new (posterior) Transition and Emission matrix
     new_A = {}
@@ -186,14 +186,14 @@ def baumwelch(set_X,A,E):
     # this is the jth training sequence
     # since A_kl and E_k(s) are just sums over j, can just += A{^j}_kl and += E{^j}_k(s) to A_kl and E_k(s)
     row_sumA, row_sumE = {a:0 for a in allStates}, {e:0 for e in emittingStates}
-    for X in set_X: # set of training sequences
+    for jseq, X in enumerate(set_X): # set of training sequences
         # this takes case of Sum-log likelihood
         P,F = forward(X,A,E)  # Save both the forward probability and the forward trellis
         pB,B = backward(X,A,E) # Forward P == Backward P, so only save the backward trellis
         try:
             SLL += log10(P)
         except ValueError:
-            breakpoint()
+            SLL += 0
         #####################
         # START CODING HERE #
         #####################
@@ -211,10 +211,12 @@ def baumwelch(set_X,A,E):
                     [(F[k][i] * A[k][l] * E[l][symbol] * B[l][i+1]) / P  
                         for i, symbol in enumerate(X)]
                                     )
-                row_sumA[k] += new_A[k][l]
+                if jseq == len(set_X) - 1:
+                    row_sumA[k] += new_A[k][l]
             # END STATE!!! - essential for future iterations so that sequence can end!
-            new_A[k]['E'] += F[k][len(X)] * A[k]['E'] / P
-            row_sumA[k] += new_A[k]['E']
+            new_A[k]['E'] += (F[k][len(X)] * A[k]['E']) / P
+            if jseq == len(set_X) - 1:
+                row_sumA[k] += new_A[k]['E']
 
         for l in emittingStates:                    
                 for s in symbols:
@@ -223,10 +225,12 @@ def baumwelch(set_X,A,E):
                         [((F[l][i+1] * B[l][i+1]) / P if symbol == s else 0) 
                         for i, symbol in enumerate(X)]
                                         )
-                    row_sumE[l] += new_E[l][s]
+                    if jseq == len(set_X) - 1:
+                        row_sumE[l] += new_E[l][s]
     # Outside the for loop: Maximization
     # Normalize row sums to 1 (except END STATE row in the Transition matrix!)
     # normalize to probabilities
+    # breakpoint()
     for fromState in new_A:
         if fromState != 'E':
             for toState in new_A[fromState]:            
@@ -238,7 +242,6 @@ def baumwelch(set_X,A,E):
     #####################
     #  END CODING HERE  #
     #####################
-    # breakpoint()
     return(SLL,new_A,new_E)
 
 

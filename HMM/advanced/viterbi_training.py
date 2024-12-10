@@ -48,36 +48,70 @@ def parse_args():
 
     return parser.parse_args()
 
+'''
+Idea & Overview:
+For every sequence, Viterbi algorithm allows us to obtain most likely path GIVEN A & E priors
 
+Starting with SOME priors A & E, we run many iterations, where we try to RE-estimate A & E by
+counting Transitions & Emissions in each most Vitebri path for each sequence
+
+When we normalize these counts, we get a new estimate of A & E which we use as priors for next iteration
+'''
 
 def train_viterbi(X,A,E):
     #####################
     # START CODING HERE #
     #####################
-    # Initialize your posterior matrices
-    new_A = {}    
-    # for k in A: ...
-
-    new_E = {}
-    # for k in E: ...
+    # Just like Baum Welch
+    # Initialize a new (posterior) Transition and Emission matrix
+    new_A = {}
+    # rows -states
+    for k in A:
+        # columns - states
+        new_A[k] = {l:0 for l in A[k]}
     
+    new_E = {}
+    # rows -states
+    for k in E:
+        # columns - emitted symbols
+        new_E[k] = {s:0 for s in E[k]}
 
     # Get the state path of every sequence in X,
     # using the viterbi() function imported from hmm.py
-    for seq,label in X:
-        # ...
-        pass
-
-        # Count the transitions and emissions for every state
-
+    for seq in X:
+        # state_path, Vitebri Prob, Vitebri Trellis for given training sequence
+        state_path, _, _ = viterbi(seq, A, E)
+        # Count the transitions and emissions for every state in the optimal state path
+        for i, state in enumerate(state_path):
+            if i == 0:
+                last_state = 'B'
+            else:
+                last_state = state_path[i-1]
+            # count transitions
+            new_A[last_state][state] += 1
+            # count emissions
+            new_E[state][seq[i]] += 1
+        # must include Transition to END state !!!
+        last_state = state # use last state
+        state = 'E'
+        new_A[last_state][state] += 1
 
     # Normalize your row sums
+    for fromState in new_A:
+        row_sum = sum(new_A[fromState].values())
+        if fromState != 'E':
+            for toState in new_A[fromState]:            
+                new_A[fromState][toState] /= row_sum
 
+    for fromState in new_E:
+        row_sum = sum(new_E[fromState].values())
+        for emittedSymbol in new_E[fromState]:
+            new_E[fromState][emittedSymbol] /= row_sum
 
     #####################
     #  END CODING HERE  #
     #####################
-    
+    # breakpoint()
     return new_A, new_E
 
 
@@ -99,8 +133,14 @@ def main(args = False):
     # Iterate until you've reached i_max or until your parameters have converged!
     # Note Viterbi converges discretely (unlike Baum-Welch), so you don't need to
     # track your Sum Log-Likelihood to decide this.
+    for i in range(i_max):
+        A_new, E_new = train_viterbi(set_X, A, E)
+        
+        if A_new == A and E_new == E:
+            print(f'You have converged in iteration {i+1}!')
+            break
 
-
+        A, E = A_new, E_new
     #####################
     #  END CODING HERE  #
     #####################

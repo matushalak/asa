@@ -8,7 +8,7 @@ INSTRUCTIONS:
     Complete the code (compatible with Python 3!) upload to CodeGrade via corresponding Canvas assignment.
 
 AUTHOR:
-    <your name and student number here>
+    <Matus Halak 2724858>
 """
 
 import os.path as op
@@ -18,23 +18,47 @@ from math import log10
 from hmm_utility import parse_args, load_fasta, load_tsv, print_trellis, print_params, serialize
 
 
+'''
+Overview:
+Goal: Hidden Markov Model that can recognise Domain (D) and Linker (L) regions in protein sequences.
+Simplified AA alphabet H (Hydrophobic), P (Polar), C (Charged). 
+Normal AA alphabet could easily be converted into the simplified alphabet, 
+but of course a HMM model with the full alphabet would perform better.
+
+4 States: 
+Q = {B(egin state), D(omain), L(inker), E(nd state)}
+
+Alphabet:
+∑ = {H(ydrophobic), P(olar), C(harged)}
+
+Transition probabilities between 4 states:
+A1 (initial prior for those probabilities, needs to be trained to have a good model)
+
+Emission probabilities of the D & L states:
+E1 (initial prior for those emission probabilities, needs ot be trained to be a good HMM)
+'''
+
 
 def viterbi(X,A,E):
     """Given a single sequence, with Transition and Emission probabilities,
     return the most probable state path, the corresponding P(X), and trellis."""
 
-    allStates = A.keys()
-    emittingStates = E.keys()
-    L = len(X) + 2
+    allStates = A.keys() # rows
+    emittingStates = E.keys() # rows
+    L = len(X) + 2 # 1 begin state + seq len + 1 end state
 
     # Initialize
+    # states are rows, columns are positions in sequence
     V = {k:[0] * L for k in allStates} # The Viterbi trellis
+    # first & last row = start & end states
+    # first & last column = start & end
     V['B'][0] = 1.
 
     # Middle columns
     for i,s in enumerate(X):
         for l in emittingStates:
             terms = [V[k][i] * A[k][l] for k in allStates]
+            # i+1 because 0th state is start state
             V[l][i+1] = max(terms) * E[l][s]
 
     # Last column
@@ -79,16 +103,21 @@ def forward(X,A,E):
     # Adapt the viterbi() function to account for the differences.
 
     # Middle columns
-    # for ...
+    for i,s in enumerate(X):
+        for l in emittingStates:
+            terms = [F[k][i] * A[k][l] for k in allStates]
+            F[l][i+1] = sum(terms) * E[l][s]
 
-    # Last columns
-    # for ...:
-    #     F['E'][-1] += ...
-
+    # Last column
+    # Forward probability of entire sequence GIVEN HMM model
+    F['E'][-1] = sum(
+        # sum of final column means sum of 2nd to last column, since last column is 'end state' column
+        [F[k][-2]*A[k]['E'] for k in allStates]
+                     )
     #####################
     #  END CODING HERE  #
     #####################
-
+    # this is the P(X) that we use in Baum-Welch!!!
     P = F['E'][-1] # The Forward probability: P(X|A,E)
     return(P,F)
 
@@ -105,20 +134,26 @@ def backward(X,A,E):
     # Initialize
     B = {k:[0] * L for k in allStates} # The Backward trellis
     for k in allStates:
+        # last column is initialized with last -> end transition probabilities for all states
+        # here 2nd to last because last column reserved for end state
         B[k][-2] = A[k]['E']
 
     #####################
     # START CODING HERE #
     #####################
     # Remaining columns
-    # for i in range(L-3,-1,-1):
-    #     s = seq[i]
-    #     ...
-
+    # normally iteration is from L-1 since last column filled at initialization
+    # here, we iterate from L-3 since last column corresponds to L-2
+    for i in range(L-3, -1, -1): # until -1 because we want 0 to be included
+        for k in allStates:
+            terms = [B[l][i+1] * A[k][l] * E[l][X[i]] for l in emittingStates]
+            B[k][i] = sum(terms)
     #####################
     #  END CODING HERE  #
     #####################
 
+    # Probability that we are in begin state & observed entire sequence
+    # this is the P(X) that we use in Baum-Welch!!!
     P = B['B'][0] # The Backward probability -- should be identical to Forward!
     return(P,B)
 
@@ -131,41 +166,82 @@ def baumwelch(set_X,A,E):
 
     allStates = A.keys()
     emittingStates = E.keys()
+    symbols = [s for s in E[list(E)[0]]]
     
     # Initialize a new (posterior) Transition and Emission matrix
     new_A = {}
+    # rows -states
     for k in A:
+        # columns - states
         new_A[k] = {l:0 for l in A[k]}
     
     new_E = {}
+    # rows -states
     for k in E:
+        # columns - emitted symbols
         new_E[k] = {s:0 for s in E[k]}
 
     # Iterate through all sequences in X
     SLL = 0 # Sum Log-Likelihood
-    for X in set_X:
+    # this is the jth training sequence
+    # since A_kl and E_k(s) are just sums over j, can just += A{^j}_kl and += E{^j}_k(s) to A_kl and E_k(s)
+    row_sumA, row_sumE = {a:0 for a in allStates}, {e:0 for e in emittingStates}
+    for jseq, X in enumerate(set_X): # set of training sequences
+        # this takes case of Sum-log likelihood
         P,F = forward(X,A,E)  # Save both the forward probability and the forward trellis
-        _,B = backward(X,A,E) # Forward P == Backward P, so only save the backward trellis
-        SLL += log10(P)
-
+        pB,B = backward(X,A,E) # Forward P == Backward P, so only save the backward trellis
+        try:
+            SLL += log10(P)
+        except ValueError:
+            breakpoint()
         #####################
         # START CODING HERE #
         #####################
 
         # Inside the for loop: Expectation
-        # Count how often you observe each transition and emission.
-        # Add the counts to your posterior matrices.
+        # Calculate the expected transitions and emissions for the sequence.
+        # Add the contributions to your posterior matrices.
         # Remember to normalize to the sequence's probability P!
         
-    # Outside the for loop: Maximization
-    # Normalize row sums to 1 (except for one row in the Transition matrix!)
-    # new_A = ...
-    # new_E = ...
+        for k in allStates:
+            for l in emittingStates:                    
+                # add current Ajkl to Akl
+                # breakpoint()
+                new_A[k][l] += sum(
+                    [(F[k][i] * A[k][l] * E[l][symbol] * B[l][i+1]) / P  
+                        for i, symbol in enumerate(X)]
+                                    )
+                if jseq == len(set_X) - 1:
+                    row_sumA[k] += new_A[k][l]
+            # END STATE!!! - essential for future iterations so that sequence can end!
+            new_A[k]['E'] += (F[k][len(X)] * A[k]['E']) / P
+            if jseq == len(set_X) - 1:
+                row_sumA[k] += new_A[k]['E']
 
+        for l in emittingStates:                    
+                for s in symbols:
+                    # add current Ejks to Eks
+                    new_E[l][s] += sum(
+                        [((F[l][i+1] * B[l][i+1]) / P if symbol == s else 0) 
+                        for i, symbol in enumerate(X)]
+                                        )
+                    if jseq == len(set_X) - 1:
+                        row_sumE[l] += new_E[l][s]
+    # Outside the for loop: Maximization
+    # Normalize row sums to 1 (except END STATE row in the Transition matrix!)
+    # normalize to probabilities
+    # breakpoint()
+    for fromState in new_A:
+        if fromState != 'E':
+            for toState in new_A[fromState]:            
+                new_A[fromState][toState] /= row_sumA[fromState]
+
+    for fromState in new_E:
+        for emittedSymbol in new_E[fromState]:
+            new_E[fromState][emittedSymbol] /= row_sumE[fromState]
     #####################
     #  END CODING HERE  #
     #####################
-
     return(SLL,new_A,new_E)
 
 
@@ -256,7 +332,10 @@ def main(args = False):
             if verbosity >= 2: print_params(A,E)
 
         converged = current_SLL - last_SLL <= threshold
-        final_SLL = sum([log10(forward(X,A,E)[0]) for X in set_X])
+        try:
+            final_SLL = sum([log10(forward(X,A,E)[0]) for X in set_X])
+        except ValueError:
+            final_SLL = 0
 
         # Save and/or print relevant output
         save('SLL','%1.2e\t%i\t%s' % (final_SLL, i, converged))
